@@ -96,7 +96,7 @@ app.get('/oauth/callback', async (req, res) => {
           headers: {
             'Authorization': `Basic ${encodedCredentials}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'PatriotFrontline/1.0' // Ensure you set a User-Agent header as required
+            'User-Agent': process.env.ACCESS_TOKEN // Ensure you set a User-Agent header as required
           }
         }
       );
@@ -123,7 +123,7 @@ async function createWebhook(eventType) {
       'https://api.squarespace.com/1.0/webhooks',
       {
         event: eventType,
-        callbackUrl: 'https://lowpriceparadise.com/webhook/squarespace',
+        callbackUrl: 'https://services.patriotfrontline.com/webhook/squarespace',
       },
       {
         headers: {
@@ -147,15 +147,20 @@ app.get('/setup-webhooks', async (req, res) => {
 
 // List existing webhooks
 app.get('/list-webhooks', async (req, res) => {
-  try {
-    const response = await axios.get('https://api.squarespace.com/1.0/webhooks', {
-      headers: { Authorization: `Bearer ${process.env.ACCESS_TOKEN}` },
-    });
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).send('Error retrieving webhooks.');
-  }
-});
+    try {
+      const response = await axios.get('https://api.squarespace.com/1.0/webhook_subscriptions', {
+        headers: {
+          'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
+          'User-Agent': process.env.ACCESS_TOKEN // Replace with your app's name/version
+        }
+      });
+      // Return the JSON response from Squarespace
+      res.json(response.data);
+    } catch (error) {
+      console.error("Error listing webhook subscriptions:", error.response ? error.response.data : error.message);
+      res.status(500).send('Error retrieving webhook subscriptions.');
+    }
+  });
 
 // Delete a webhook
 app.get('/delete-webhook/:id', async (req, res) => {
