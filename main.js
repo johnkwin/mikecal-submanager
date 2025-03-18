@@ -225,33 +225,35 @@ app.get('/delete-webhook/:id', async (req, res) => {
 
 // Handle incoming SquareSpace webhooks
 app.post('/webhook/squarespace', async (req, res) => {
-  const event = req.body;
-
-  console.log('Received SquareSpace Webhook:', event);
-
-  if (!event || !event.data) {
-    return res.status(400).send('Invalid webhook data');
-  }
-
-  const { email, id } = event.data.customer;
-  const status = event.data.fulfillmentStatus;
-  const fileName = id; // Using order ID as file identifier
-
-  if (status === "FULFILLED") {
-    const userData = {
-      username: email,
-      subscriptionStatus: status,
-      orderId: id,
-      createdAt: new Date().toISOString(),
-    };
-    await uploadSubscriptionData(userData, fileName);
-  } else if (status === "CANCELED") {
-    await deleteSubscriptionFile(fileName);
-  }
-
-  res.status(200).send('Webhook processed');
-});
-
+    // Output the raw POST data for debugging
+    console.log("Raw POST data received:", JSON.stringify(req.body, null, 2));
+  
+    const event = req.body;
+    console.log('Received SquareSpace Webhook:', event);
+  
+    if (!event || !event.data) {
+      return res.status(400).send('Invalid webhook data');
+    }
+  
+    const { email, id } = event.data.customer;
+    const status = event.data.fulfillmentStatus;
+    const fileName = id; // Using order ID as file identifier
+  
+    if (status === "FULFILLED") {
+      const userData = {
+        username: email,
+        subscriptionStatus: status,
+        orderId: id,
+        createdAt: new Date().toISOString(),
+      };
+      await uploadSubscriptionData(userData, fileName);
+    } else if (status === "CANCELED") {
+      await deleteSubscriptionFile(fileName);
+    }
+  
+    res.status(200).send('Webhook processed');
+  });
+  
 // Start Express server
 const PORT = process.env.PORT || 3050;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
