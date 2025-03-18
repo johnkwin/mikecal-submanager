@@ -44,35 +44,55 @@ async function deleteSubscriptionFile(fileName) {
 
 // OAuth Step 1: Redirect user to SquareSpace for authentication
 app.get('/oauth/login', (req, res) => {
-  const authUrl = `https://login.squarespace.com/api/1/login/oauth/provider/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${process.env.REDIRECT_URI}&scope=website.orders,website.inventory`;
+  const authUrl = `https://login.squarespace.com/api/1/login/oauth/provider/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${process.env.REDIRECT_URI}&scope=website.orders,website.inventory&state=${process.env.STATE}`;
   res.redirect(authUrl);
 });
 
 // OAuth Step 2: Handle OAuth callback
 app.get('/oauth/callback', async (req, res) => {
-  const authCode = req.query.code;
-  console.log("Received auth code:", authCode);
-  if (!authCode) {
-    return res.status(400).send('Authorization code is missing.');
-  }
-
-  try {
-    const response = await axios.post('https://api.squarespace.com/oauth/token', {
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      code: authCode,
-      grant_type: 'authorization_code',
-      redirect_uri: process.env.REDIRECT_URI,
-    });
-
-    const accessToken = response.data.access_token;
-    console.log('Access Token:', accessToken);
-    res.send('OAuth successful! Store the access token securely.');
-  } catch (error) {
-    console.error('OAuth Error:', error.response ? error.response.data : error.message);
-    res.status(500).send('OAuth failed.');
-  }
-});
+    // Capture the code and state from the query parameters
+    const authCode = req.query.code;
+    const state = req.query.state;
+    
+    // Optional: Validate the state parameter to prevent CSRF attacks
+    if (state !== expectedStateValue) {
+     return res.status(400).send('Invalid state parameter.');
+     }
+    
+    if (!authCode) {
+      return res.status(400).send('Authorization code is missing.');
+    }
+  
+    try {
+      // Build the Basic Auth header using client_id and client_secret
+      const credentials = `${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`;
+      const encodedCredentials = Buffer.from(credentials).toString('base64');
+      
+      // Make the POST request to the correct token endpoint
+      const response = await axios.post(
+        'https://login.squarespace.com/api/1/login/oauth/provider/tokens',
+        {
+          grant_type: 'authorization_code',
+          code: authCode,
+          redirect_uri: process.env.REDIRECT_URI
+        },
+        {
+          headers: {
+            'Authorization': `Basic ${encodedCredentials}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'YourAppName/1.0' // Ensure you set a User-Agent header as required
+          }
+        }
+      );
+      
+      const accessToken = response.data.access_token;
+      console.log('Access Token:', accessToken);
+      res.send('OAuth successful! Store the access token securely.');
+    } catch (error) {
+      console.error('OAuth Error:', error.response ? error.response.data : error.message);
+      res.status(500).send('OAuth failed.');
+    }
+  });
 
 // Function to create a SquareSpace webhook
 async function createWebhook(eventType) {
