@@ -51,6 +51,7 @@ app.get('/oauth/login', (req, res) => {
 // OAuth Step 2: Handle OAuth callback
 app.get('/oauth/callback', async (req, res) => {
   const authCode = req.query.code;
+  console.log("Received auth code:", authCode);
   if (!authCode) {
     return res.status(400).send('Authorization code is missing.');
   }
