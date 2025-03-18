@@ -44,7 +44,7 @@ async function deleteSubscriptionFile(fileName) {
 
 // OAuth Step 1: Redirect user to SquareSpace for authentication
 app.get('/oauth/login', (req, res) => {
-  const authUrl = `https://login.squarespace.com/oauth/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${process.env.REDIRECT_URI}&scope=website.orders,website.inventory`;
+  const authUrl = `https://login.squarespace.com/api/1/login/oauth/provider/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${process.env.REDIRECT_URI}&scope=website.orders,website.inventory`;
   res.redirect(authUrl);
 });
 
