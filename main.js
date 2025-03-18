@@ -96,7 +96,7 @@ app.get('/oauth/callback', async (req, res) => {
           headers: {
             'Authorization': `Basic ${encodedCredentials}`,
             'Content-Type': 'application/json',
-            'User-Agent': process.env.ACCESS_TOKEN // Ensure you set a User-Agent header as required
+            'User-Agent': process.env.USER_AGENT // Ensure you set a User-Agent header as required
           }
         }
       );
@@ -151,7 +151,7 @@ app.get('/list-webhooks', async (req, res) => {
       const response = await axios.get('https://api.squarespace.com/1.0/webhook_subscriptions', {
         headers: {
           'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-          'User-Agent': process.env.ACCESS_TOKEN // Replace with your app's name/version
+          'User-Agent': process.env.USER_AGENT // Replace with your app's name/version
         }
       });
       // Return the JSON response from Squarespace
