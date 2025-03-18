@@ -118,25 +118,26 @@ app.get('/oauth/callback', async (req, res) => {
 
 // Function to create a SquareSpace webhook
 async function createWebhook(eventType) {
-  try {
-    const response = await axios.post(
-      'https://api.squarespace.com/1.0/webhooks',
-      {
-        event: eventType,
-        callbackUrl: 'https://services.patriotfrontline.com/webhook/squarespace',
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post(
+        'https://api.squarespace.com/1.0/webhook_subscriptions',
+        {
+          endpointUrl: 'https://services.patriotfrontline.com/webhook/squarespace',
+          topics: [eventType]
         },
-      }
-    );
-    console.log(`Webhook for ${eventType} created:`, response.data);
-  } catch (err) {
-    console.error(`Error creating webhook for ${eventType}:`, err.response ? err.response.data : err.message);
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': process.env.USER_AGENT // Replace with your app's name/version
+          }
+        }
+      );
+      console.log(`Webhook for ${eventType} created:`, response.data);
+    } catch (err) {
+      console.error(`Error creating webhook for ${eventType}:`, err.response ? err.response.data : err.message);
+    }
   }
-}
 
 // Endpoint to set up webhooks
 app.get('/setup-webhooks', async (req, res) => {
