@@ -55,7 +55,7 @@ app.get('/oauth/callback', async (req, res) => {
     const state = req.query.state;
     
     // Optional: Validate the state parameter to prevent CSRF attacks
-    if (state !== expectedStateValue) {
+    if (state !== process.env.STATE) {
      return res.status(400).send('Invalid state parameter.');
      }
     
