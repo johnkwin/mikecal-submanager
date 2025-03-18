@@ -151,12 +151,11 @@ app.get('/list-webhooks', async (req, res) => {
     try {
       const response = await axios.get('https://api.squarespace.com/1.0/webhook_subscriptions', {
         headers: {
-          'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-          'User-Agent': process.env.USER_AGENT // Replace with your app's name/version
+          'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`
         }
       });
       // Return the JSON response from Squarespace
-      res.json(response.data);
+      res.json(response.webhookSubscriptions);
     } catch (error) {
       console.error("Error listing webhook subscriptions:", error.response ? error.response.data : error.message);
       res.status(500).send('Error retrieving webhook subscriptions.');
