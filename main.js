@@ -3,6 +3,8 @@ const express = require('express');
 const axios = require('axios');
 const SFTPClient = require('ssh2-sftp-client');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
@@ -41,7 +43,21 @@ async function deleteSubscriptionFile(fileName) {
     console.error("SFTP Deletion Error:", err);
   }
 }
-
+function updateEnvFile(newAccessToken, newRefreshToken) {
+    const envPath = path.join(__dirname, '.env');
+    let envContents = fs.readFileSync(envPath, 'utf8');
+  
+    // Replace the ACCESS_TOKEN line. The regular expression uses the 'm' flag to work on multiline.
+    envContents = envContents.replace(/^ACCESS_TOKEN=.*/m, `ACCESS_TOKEN=${newAccessToken}`);
+    
+    // Optionally update the REFRESH_TOKEN if provided.
+    if (newRefreshToken) {
+      envContents = envContents.replace(/^REFRESH_TOKEN=.*/m, `REFRESH_TOKEN=${newRefreshToken}`);
+    }
+    
+    fs.writeFileSync(envPath, envContents);
+    console.log("Updated .env file with new access token.");
+  }
 // OAuth Step 1: Redirect user to SquareSpace for authentication
 app.get('/oauth/login', (req, res) => {
   const authUrl = `https://login.squarespace.com/api/1/login/oauth/provider/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${process.env.REDIRECT_URI}&scope=website.orders,website.inventory&state=${process.env.STATE}`;
@@ -80,14 +96,20 @@ app.get('/oauth/callback', async (req, res) => {
           headers: {
             'Authorization': `Basic ${encodedCredentials}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'YourAppName/1.0' // Ensure you set a User-Agent header as required
+            'User-Agent': 'PatriotFrontline/1.0' // Ensure you set a User-Agent header as required
           }
         }
       );
-      
-      const accessToken = response.data.access_token;
-      console.log('Access Token:', accessToken);
-      res.send('OAuth successful! Store the access token securely.');
+      // Extract tokens from the response
+    const accessToken = response.data.access_token;
+    const refreshToken = response.data.refresh_token; // if provided
+
+    console.log('Access Token:', accessToken);
+
+    // Update the .env file with the new tokens
+    updateEnvFile(accessToken, refreshToken);
+
+    res.send('OAuth successful! Access token updated in .env.');
     } catch (error) {
       console.error('OAuth Error:', error.response ? error.response.data : error.message);
       res.status(500).send('OAuth failed.');
