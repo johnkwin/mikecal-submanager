@@ -426,6 +426,7 @@ app.get('/delete-webhook/:id', async (req, res) => {
 /**
  * Helper: Retrieve order details using API_KEY.
  * Uses a narrow date window based on createdOn.
+ * Now prints out the search parameters and the results found.
  */
 async function getOrderDetailsByOrderId(orderId, createdOn) {
   try {
@@ -433,6 +434,9 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
     const modifiedAfter = new Date(orderDate.getTime() - 60000).toISOString();
     const modifiedBefore = new Date(orderDate.getTime() + 60000).toISOString();
     const url = `https://api.squarespace.com/1.0/commerce/orders?modifiedAfter=${encodeURIComponent(modifiedAfter)}&modifiedBefore=${encodeURIComponent(modifiedBefore)}`;
+    console.log(`Searching for orderId: ${orderId}`);
+    console.log(`ModifiedAfter: ${modifiedAfter}, ModifiedBefore: ${modifiedBefore}`);
+    console.log(`GET ${url}`);
     const response = await axios.get(url, {
       headers: {
         'Authorization': `Bearer ${process.env.API_KEY}`,
@@ -440,7 +444,13 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
       }
     });
     if (response.data && Array.isArray(response.data.result)) {
+      console.log("Orders retrieved:", response.data.result.map(o => o.id));
       const order = response.data.result.find(o => o.id === orderId);
+      if (order) {
+        console.log("Found order:", order);
+      } else {
+        console.log(`Order with id ${orderId} not found in the retrieved data.`);
+      }
       return order;
     }
     return null;
@@ -451,9 +461,40 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
 }
 
 /**
+ * Helper: Retrieve a random order from the orders endpoint.
+ */
+async function getRandomOrder() {
+  try {
+    const url = `https://api.squarespace.com/1.0/commerce/orders`;
+    console.log("Fetching all orders for random selection from:", url);
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.API_KEY}`,
+        'User-Agent': process.env.USER_AGENT
+      }
+    });
+    if (response.data && Array.isArray(response.data.result)) {
+      const orders = response.data.result;
+      if (orders.length > 0) {
+        const randomIndex = Math.floor(Math.random() * orders.length);
+        const randomOrder = orders[randomIndex];
+        console.log("Random order selected:", randomOrder.id);
+        return randomOrder;
+      }
+    }
+    console.error("No orders found for random selection.");
+    return null;
+  } catch (error) {
+    console.error("Error retrieving random order:", error.response ? error.response.data : error.message);
+    return null;
+  }
+}
+
+/**
  * Updated webhook endpoint.
  * For order.create or order.update (FULFILLED), update the subscription record.
  * For cancellation events, remove the subscription record.
+ * Also, if a test webhook is received with "test-order-id", a random order is chosen.
  */
 app.post('/webhook/squarespace', async (req, res) => {
   console.log("Raw POST data received:", JSON.stringify(req.body, null, 2));
@@ -462,12 +503,24 @@ app.post('/webhook/squarespace', async (req, res) => {
     return res.status(400).send('Invalid webhook data');
   }
   
-  const orderId = event.data.orderId;
-  const createdOn = event.createdOn;
+  let orderId = event.data.orderId;
+  let createdOn = event.createdOn;
   const topic = event.topic;
   
   if (!orderId || !createdOn) {
     return res.status(400).send('Missing orderId or createdOn in webhook data');
+  }
+  
+  // If the webhook is a test (orderId === "test-order-id"), select a random order.
+  if (orderId === 'test-order-id') {
+    const randomOrder = await getRandomOrder();
+    if (randomOrder) {
+      orderId = randomOrder.id;
+      createdOn = randomOrder.createdOn;
+      console.log(`Test webhook detected. Overriding with random order id: ${orderId}`);
+    } else {
+      return res.status(404).send("No orders available for test webhook.");
+    }
   }
   
   // Retrieve order details using API_KEY.
