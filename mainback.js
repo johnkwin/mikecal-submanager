@@ -5,7 +5,7 @@ const SFTPClient = require('ssh2-sftp-client');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
-const { format, addMonths, addYears, parseISO } = require('date-fns');
+const { format } = require('date-fns'); // For improved date formatting if desired
 
 const app = express();
 app.use(bodyParser.json());
@@ -20,199 +20,9 @@ const sftpConfig = {
 
 const sftp = new SFTPClient();
 
-// Path for persistent subscription store
-const subscriptionsFilePath = path.join(__dirname, 'subscriptions.json');
-// In-memory subscriptions store (keyed by customerEmail)
-let subscriptionsStore = {};
-
 /**
- * Load subscriptions from persistent store (JSON file).
+ * Upload subscription data as JSON to SFTP.
  */
-function loadSubscriptions() {
-  if (fs.existsSync(subscriptionsFilePath)) {
-    const data = fs.readFileSync(subscriptionsFilePath, 'utf8');
-    try {
-      subscriptionsStore = JSON.parse(data);
-      console.log("Loaded subscriptions from disk.");
-    } catch (err) {
-      console.error("Error parsing subscriptions file:", err);
-      subscriptionsStore = {};
-    }
-  } else {
-    subscriptionsStore = {};
-  }
-}
-
-/**
- * Save the current subscriptions store to disk.
- */
-function saveSubscriptions() {
-  fs.writeFileSync(subscriptionsFilePath, JSON.stringify(subscriptionsStore, null, 2), 'utf8');
-  console.log("Subscriptions saved to disk.");
-}
-
-// Load subscriptions on startup.
-loadSubscriptions();
-
-/**
- * Calculate the next due date based on lastPaymentDate and plan.
- * Assumes ISO string for lastPaymentDate.
- */
-function computeNextDueDate(lastPaymentDate, subscriptionPlan) {
-  const dateObj = parseISO(lastPaymentDate);
-  if (subscriptionPlan === 'Monthly') {
-    return addMonths(dateObj, 1);
-  } else if (subscriptionPlan === 'Annual') {
-    return addYears(dateObj, 1);
-  }
-  return dateObj;
-}
-
-/**
- * Determine if a subscription is active.
- * Active if the current date is before the nextDueDate.
- */
-function isActiveSubscription(subscriptionRecord) {
-  const now = new Date();
-  const nextDue = new Date(subscriptionRecord.nextDueDate);
-  return now < nextDue;
-}
-
-/**
- * Update (or create) a subscription record from order details.
- * This function extracts the most recent payment data and additional fields.
- */
-function updateSubscriptionRecord(orderDetails) {
-  // Use customer email as key
-  const email = orderDetails.customerEmail;
-  // Check that we have payments (ignore orders with no payments)
-  if (!orderDetails.payments || orderDetails.payments.length === 0) {
-    console.log(`No payment info for order ${orderDetails.id}. Skipping subscription update.`);
-    return;
-  }
-  // Find the payment with the latest paidOn date
-  let latestPayment = orderDetails.payments[0];
-  orderDetails.payments.forEach(payment => {
-    if (new Date(payment.paidOn) > new Date(latestPayment.paidOn)) {
-      latestPayment = payment;
-    }
-  });
-
-  const paymentAmount = latestPayment.amount.value;
-  let subscriptionPlan = '';
-  if (paymentAmount === '19.99') {
-    subscriptionPlan = 'Monthly';
-  } else if (paymentAmount === '159.00') {
-    subscriptionPlan = 'Annual';
-  } else {
-    // If not one of the known amounts, skip processing.
-    console.log(`Payment amount ${paymentAmount} not recognized for subscription.`);
-    return;
-  }
-  
-  // Determine next due date
-  const nextDueDateObj = computeNextDueDate(latestPayment.paidOn, subscriptionPlan);
-  const nextDueDate = format(nextDueDateObj, 'yyyyMMdd'); // Fixed 8-digit date
-
-  // Format last payment date as YYYYMMDD
-  const lastPaymentDate = format(parseISO(latestPayment.paidOn), 'yyyyMMdd');
-
-  // Pull additional data from billingAddress if available.
-  const billing = orderDetails.billingAddress || {};
-  const firstName = billing.firstName || '';
-  const lastName = billing.lastName || '';
-
-  // Create/update the subscription record
-  subscriptionsStore[email] = {
-    customerEmail: email,
-    lastPaymentDate: lastPaymentDate,  // in YYYYMMDD format
-    paymentAmount: paymentAmount,
-    subscriptionPlan: subscriptionPlan,
-    nextDueDate: nextDueDate,          // in YYYYMMDD format
-    orderId: orderDetails.id,
-    firstName: firstName,
-    lastName: lastName,
-    // Optionally, store other order fields as needed
-  };
-
-  console.log(`Updated subscription record for ${email}`);
-  saveSubscriptions();
-}
-
-/**
- * Remove a subscription record based on order cancellation.
- */
-function removeSubscriptionRecord(orderDetails) {
-  const email = orderDetails.customerEmail;
-  if (subscriptionsStore[email]) {
-    delete subscriptionsStore[email];
-    console.log(`Removed subscription record for ${email}`);
-    saveSubscriptions();
-  }
-}
-
-/**
- * Upload subscription SDF file to SFTP.
- * Here, the file is generated in ASCII fixed‑width format.
- */
-async function uploadSubscriptionSDF(filePath) {
-  try {
-    await sftp.connect(sftpConfig);
-    // For example, place the file in /subscriptions on SFTP.
-    const remoteFilePath = `/subscriptions/${path.basename(filePath)}`;
-    await sftp.put(filePath, remoteFilePath);
-    console.log(`Uploaded subscription SDF file: ${remoteFilePath}`);
-    await sftp.end();
-  } catch (err) {
-    console.error("SFTP Upload Error:", err);
-  }
-}
-
-/**
- * Generate an ASCII SDF file (fixed field lengths) from active subscriptions.
- * Field layout (all fields are fixed width):
- *   Customer Email:     50 chars (left-justified)
- *   Subscription Plan:  10 chars (left-justified)
- *   Last Payment Date:   8 chars (YYYYMMDD)
- *   Next Due Date:       8 chars (YYYYMMDD)
- *   Payment Amount:      8 chars (right-justified, padded with spaces)
- *   First Name:         20 chars (left-justified)
- *   Last Name:          20 chars (left-justified)
- *   Order ID:           24 chars (left-justified)
- */
-function generateSubscriptionSDF(subscriptions) {
-  const lines = [];
-  // Header (optional – if you need a header record, you can add one)
-  // Iterate over active subscriptions only.
-  Object.values(subscriptions).forEach(record => {
-    if (isActiveSubscription(record)) {
-      const email = record.customerEmail.padEnd(50, ' ');
-      const plan = record.subscriptionPlan.padEnd(10, ' ');
-      const lastPay = record.lastPaymentDate; // already 8 chars
-      const nextDue = record.nextDueDate;     // already 8 chars
-      // Payment amount: right-justify within 8 chars. Assume fixed two decimals.
-      const amount = record.paymentAmount.padStart(8, ' ');
-      const fName = record.firstName.padEnd(20, ' ');
-      const lName = record.lastName.padEnd(20, ' ');
-      const orderId = record.orderId.padEnd(24, ' ');
-      const line = email + plan + lastPay + nextDue + amount + fName + lName + orderId;
-      lines.push(line);
-    }
-  });
-  // Define file name based on a group code (for example, use an env variable or a constant)
-  const groupCode = process.env.SHAREINGTON_GROUP_CODE || 'SHAREING';
-  const datePart = format(new Date(), 'MMddyy');
-  const fileName = `${groupCode}${datePart}_full.txt`;
-  const outputFilePath = path.join(__dirname, fileName);
-  fs.writeFileSync(outputFilePath, lines.join('\n'), 'utf8');
-  console.log(`Subscription SDF file created: ${outputFilePath}`);
-  return outputFilePath;
-}
-
-/* ========= Existing functions for OAuth, token refresh, webhook management, etc. ========= */
-
-// (The unchanged functions for OAuth, token refresh, webhook creation, etc. remain as in your original code.)
-
 async function uploadSubscriptionData(userData, fileName) {
   try {
     await sftp.connect(sftpConfig);
@@ -225,6 +35,9 @@ async function uploadSubscriptionData(userData, fileName) {
   }
 }
 
+/**
+ * Delete a subscription file from SFTP.
+ */
 async function deleteSubscriptionFile(fileName) {
   try {
     await sftp.connect(sftpConfig);
@@ -237,6 +50,9 @@ async function deleteSubscriptionFile(fileName) {
   }
 }
 
+/**
+ * Update the .env file with new token values and update process.env.
+ */
 function updateEnvFile(newAccessToken, newRefreshToken) {
   const envPath = path.join(__dirname, '.env');
   let envContents = fs.readFileSync(envPath, 'utf8');
@@ -256,6 +72,9 @@ function updateEnvFile(newAccessToken, newRefreshToken) {
   if (newRefreshToken) process.env.REFRESH_TOKEN = newRefreshToken;
 }
 
+/**
+ * Automatically refresh the access token using the refresh token.
+ */
 async function refreshAccessToken() {
   try {
     console.log("Refreshing access token...");
@@ -287,8 +106,13 @@ async function refreshAccessToken() {
     console.error("Error refreshing access token:", error.response ? error.response.data : error.message);
   }
 }
+
+// Schedule token refresh every 25 minutes (access tokens are valid for 30 minutes)
 setInterval(refreshAccessToken, 25 * 60 * 1000);
 
+/**
+ * Check and (re)create webhooks if needed.
+ */
 async function checkAndSetupWebhooks() {
   try {
     const response = await axios.get('https://api.squarespace.com/1.0/webhook_subscriptions', {
@@ -318,11 +142,17 @@ async function checkAndSetupWebhooks() {
 checkAndSetupWebhooks();
 setInterval(checkAndSetupWebhooks, 30 * 60 * 1000);
 
+/**
+ * OAuth Step 1: Redirect user to SquareSpace for authentication.
+ */
 app.get('/oauth/login', (req, res) => {
   const authUrl = `https://login.squarespace.com/api/1/login/oauth/provider/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&scope=website.orders,website.inventory&state=${process.env.STATE}`;
   res.redirect(authUrl);
 });
 
+/**
+ * OAuth Step 2: Handle OAuth callback.
+ */
 app.get('/oauth/callback', async (req, res) => {
   const authCode = req.query.code;
   const state = req.query.state;
@@ -366,6 +196,9 @@ app.get('/oauth/callback', async (req, res) => {
   }
 });
 
+/**
+ * Create a SquareSpace webhook subscription.
+ */
 async function createWebhook(eventType) {
   try {
     const response = await axios.post(
@@ -388,12 +221,18 @@ async function createWebhook(eventType) {
   }
 }
 
+/**
+ * Endpoint to manually set up webhooks.
+ */
 app.get('/setup-webhooks', async (req, res) => {
   await createWebhook('order.create');
   await createWebhook('order.update');
   res.send('Webhooks registered.');
 });
 
+/**
+ * Endpoint to list existing webhooks.
+ */
 app.get('/list-webhooks', async (req, res) => {
   try {
     const response = await axios.get('https://api.squarespace.com/1.0/webhook_subscriptions', {
@@ -409,6 +248,9 @@ app.get('/list-webhooks', async (req, res) => {
   }
 });
 
+/**
+ * Endpoint to delete a webhook subscription.
+ */
 app.get('/delete-webhook/:id', async (req, res) => {
   try {
     await axios.delete(`https://api.squarespace.com/1.0/webhook_subscriptions/${req.params.id}`, {
@@ -424,12 +266,13 @@ app.get('/delete-webhook/:id', async (req, res) => {
 });
 
 /**
- * Helper: Retrieve order details using API_KEY.
- * Uses a narrow date window based on createdOn.
+ * Helper: Retrieve order details using the API_KEY from Squarespace.
+ * We use the webhook's createdOn timestamp to form a narrow date range.
  */
 async function getOrderDetailsByOrderId(orderId, createdOn) {
   try {
     const orderDate = new Date(createdOn);
+    // Define a 1-minute window around the order's createdOn timestamp
     const modifiedAfter = new Date(orderDate.getTime() - 60000).toISOString();
     const modifiedBefore = new Date(orderDate.getTime() + 60000).toISOString();
     const url = `https://api.squarespace.com/1.0/commerce/orders?modifiedAfter=${encodeURIComponent(modifiedAfter)}&modifiedBefore=${encodeURIComponent(modifiedBefore)}`;
@@ -451,9 +294,9 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
 }
 
 /**
- * Updated webhook endpoint.
- * For order.create or order.update (FULFILLED), update the subscription record.
- * For cancellation events, remove the subscription record.
+ * Production webhook endpoint.
+ * This endpoint now uses the order-id from the webhook to look up customer details
+ * via the Orders API (using API_KEY), then uses that data to drive the SFTP file operations.
  */
 app.post('/webhook/squarespace', async (req, res) => {
   console.log("Raw POST data received:", JSON.stringify(req.body, null, 2));
@@ -463,47 +306,45 @@ app.post('/webhook/squarespace', async (req, res) => {
   }
   
   const orderId = event.data.orderId;
-  const createdOn = event.createdOn;
+  const createdOn = event.createdOn; // The webhook's createdOn timestamp
   const topic = event.topic;
   
   if (!orderId || !createdOn) {
     return res.status(400).send('Missing orderId or createdOn in webhook data');
   }
   
-  // Retrieve order details using API_KEY.
+  // Retrieve order details using API_KEY
   const orderDetails = await getOrderDetailsByOrderId(orderId, createdOn);
   if (!orderDetails) {
     console.error(`Order with id ${orderId} not found.`);
     return res.status(404).send('Order not found');
   }
   
-  // For creation or update to FULFILLED, update the subscription record.
+  // Process based on topic/update
   if (topic === 'order.create' || (topic === 'order.update' && event.data.update === 'FULFILLED')) {
-    updateSubscriptionRecord(orderDetails);
-    // (Optional: Continue to upload individual JSON if needed)
-    await uploadSubscriptionData({ username: orderDetails.customerEmail }, orderDetails.id);
-    res.status(200).send('Order processed and subscription record updated.');
+    // Build customer data from orderDetails
+    const userData = {
+      username: orderDetails.customerEmail,
+      subscriptionStatus: orderDetails.fulfillmentStatus,
+      orderId: orderDetails.id,
+      createdAt: orderDetails.createdOn,
+      // Additional customer fields from orderDetails (e.g., billingAddress) can be added here
+    };
+    await uploadSubscriptionData(userData, orderDetails.id);
+    res.status(200).send('Order processed and subscription data uploaded.');
   } else if (topic === 'order.update' && event.data.update === 'CANCELED') {
-    removeSubscriptionRecord(orderDetails);
     await deleteSubscriptionFile(orderDetails.id);
-    res.status(200).send('Order processed and subscription record removed.');
+    res.status(200).send('Order processed and subscription file deleted.');
   } else {
     res.status(200).send('Webhook processed with no action.');
   }
 });
 
-/* ========= Daily Scheduled Job to Re-Generate SDF File ========= */
+/* ========= Eligibility File Generation Functions ========= */
 
-// This job runs once a day to recalc active subscriptions and generate/upload the SDF file.
-setInterval(() => {
-  console.log("Running daily subscription status check and SDF file generation...");
-  // (Optional: Here you could re-validate each subscription’s active status if needed)
-  const sdfFilePath = generateSubscriptionSDF(subscriptionsStore);
-  uploadSubscriptionSDF(sdfFilePath);
-}, 24 * 60 * 60 * 1000); // Every 24 hours
-
-/* ========= Existing Eligibility File Generation Functions (unchanged) ========= */
-
+/**
+ * Format a Date object as MMDDYYYY.
+ */
 function formatDateMMDDYYYY(dateObj) {
   const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
   const dd = String(dateObj.getDate()).padStart(2, '0');
@@ -511,14 +352,20 @@ function formatDateMMDDYYYY(dateObj) {
   return `${mm}${dd}${yyyy}`;
 }
 
+/**
+ * Convert a date string to an effective date per Careington's logic.
+ */
 function toCareingtonEffectiveDate(dateString) {
   const dateObj = dateString ? new Date(dateString) : new Date();
   const year = dateObj.getFullYear();
-  const month = dateObj.getMonth();
+  const month = dateObj.getMonth(); // 0-based
   const day = dateObj.getDate();
   return (day <= 15) ? new Date(year, month, 1) : (month === 11 ? new Date(year + 1, 0, 1) : new Date(year, month + 1, 1));
 }
 
+/**
+ * Build a single pipe-delimited line from a member record.
+ */
 function buildMemberLine(member) {
   const effectiveDateObj = toCareingtonEffectiveDate(member.effectiveDate);
   const effectiveDateStr = formatDateMMDDYYYY(effectiveDateObj);
@@ -550,6 +397,10 @@ function buildMemberLine(member) {
   return fields.join('|');
 }
 
+/**
+ * Generate a pipe-delimited eligibility file.
+ * File name format: PARENTGROUPCODEMMDDYY_full.csv or _delta.csv.
+ */
 function generateEligibilityFile(membersArray, parentGroupCode, isFull = true) {
   const datePart = formatDateMMDDYYYY(new Date());
   const suffix = isFull ? 'full' : 'delta';
@@ -561,6 +412,9 @@ function generateEligibilityFile(membersArray, parentGroupCode, isFull = true) {
   return outputFilePath;
 }
 
+/**
+ * Upload the eligibility file to SFTP.
+ */
 async function uploadEligibilityFile(localFilePath) {
   const remoteFileName = path.basename(localFilePath);
   const remoteFilePath = `/eligibility/${remoteFileName}`;
@@ -574,13 +428,19 @@ async function uploadEligibilityFile(localFilePath) {
   }
 }
 
+/* ========= End Eligibility Functions ========= */
+
+/**
+ * TEST MODE: Generate a pipe-delimited eligibility file using fake data
+ * based on the webhook test examples.
+ */
 app.get('/test-generate-file', async (req, res) => {
   const testMember = {
     title: 'Mr',
     firstName: 'Test',
     lastName: 'User',
     uniqueId: 'test-order-id',
-    sequenceNum: '00',
+    sequenceNum: '00', // Primary member
     address1: '123 Test St',
     address2: '',
     city: 'Testville',
