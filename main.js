@@ -74,7 +74,10 @@ function computeNextDueDate(lastPaymentDate, subscriptionPlan) {
  */
 function isActiveSubscription(subscriptionRecord) {
   const now = new Date();
-  const nextDue = new Date(subscriptionRecord.nextDueDate);
+  // Convert "YYYYMMDD" to "YYYY-MM-DD" so that new Date can parse it reliably
+  const nd = subscriptionRecord.nextDueDate;
+  const isoDate = nd.substring(0, 4) + '-' + nd.substring(4, 6) + '-' + nd.substring(6, 8);
+  const nextDue = new Date(isoDate);
   return now < nextDue;
 }
 
@@ -445,7 +448,8 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
     });
     if (response.data && Array.isArray(response.data.result)) {
       console.log("Orders retrieved:", response.data.result.map(o => o.id));
-      const order = response.data.result.find(o => o.id === orderId);
+      // Check both the internal id and the salesOrderId
+      const order = response.data.result.find(o => o.id === orderId || o.salesOrderId === orderId);
       if (order) {
         console.log("Found order:", order);
       } else {
@@ -459,6 +463,7 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
     return null;
   }
 }
+
 
 /**
  * Helper: Retrieve a random order from the orders endpoint.
