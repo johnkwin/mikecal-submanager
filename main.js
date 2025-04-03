@@ -89,13 +89,13 @@ function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
   
   // Check for sales line items instead of payments.
-  if (!orderDetails.salesLineItems || orderDetails.salesLineItems.length === 0) {
+  if (!orderDetails.lineItems || orderDetails.lineItems.length === 0) {
     console.log(`No sales line items for order ${orderDetails.id}. Skipping subscription update.`);
     return;
   }
   // Find the line item that appears to be a subscription.
   // (Assuming lineItemType "PAYWALL_PRODUCT" is used for subscriptions.)
-  const subscriptionItem = orderDetails.salesLineItems.find(item => item.lineItemType === "PAYWALL_PRODUCT");
+  const subscriptionItem = orderDetails.lineItems.find(item => item.lineItemType === "PAYWALL_PRODUCT");
   if (!subscriptionItem) {
     console.log(`No subscription sales line item for order ${orderDetails.id}. Skipping subscription update.`);
     return;
