@@ -86,46 +86,48 @@ function isActiveSubscription(subscriptionRecord) {
  * This function extracts the most recent payment data and additional fields.
  */
 function updateSubscriptionRecord(orderDetails) {
-  // Use customer email as key
   const email = orderDetails.customerEmail;
-  // Check that we have payments (ignore orders with no payments)
-  if (!orderDetails.payments || orderDetails.payments.length === 0) {
-    console.log(`No payment info for order ${orderDetails.id}. Skipping subscription update.`);
+  
+  // Check for sales line items instead of payments.
+  if (!orderDetails.salesLineItems || orderDetails.salesLineItems.length === 0) {
+    console.log(`No sales line items for order ${orderDetails.id}. Skipping subscription update.`);
     return;
   }
-  // Find the payment with the latest paidOn date
-  let latestPayment = orderDetails.payments[0];
-  orderDetails.payments.forEach(payment => {
-    if (new Date(payment.paidOn) > new Date(latestPayment.paidOn)) {
-      latestPayment = payment;
-    }
-  });
-
-  const paymentAmount = latestPayment.amount.value;
+  // Find the line item that appears to be a subscription.
+  // (Assuming lineItemType "PAYWALL_PRODUCT" is used for subscriptions.)
+  const subscriptionItem = orderDetails.salesLineItems.find(item => item.lineItemType === "PAYWALL_PRODUCT");
+  if (!subscriptionItem) {
+    console.log(`No subscription sales line item for order ${orderDetails.id}. Skipping subscription update.`);
+    return;
+  }
+  
+  // Use unitPricePaid from the sales line item.
+  const paymentAmount = subscriptionItem.unitPricePaid.value;
   let subscriptionPlan = '';
   if (paymentAmount === '19.99') {
     subscriptionPlan = 'Monthly';
   } else if (paymentAmount === '159.00') {
     subscriptionPlan = 'Annual';
   } else {
-    // If not one of the known amounts, skip processing.
     console.log(`Payment amount ${paymentAmount} not recognized for subscription.`);
     return;
   }
   
-  // Determine next due date
-  const nextDueDateObj = computeNextDueDate(latestPayment.paidOn, subscriptionPlan);
-  const nextDueDate = format(nextDueDateObj, 'yyyyMMdd'); // Fixed 8-digit date
-
-  // Format last payment date as YYYYMMDD
-  const lastPaymentDate = format(parseISO(latestPayment.paidOn), 'yyyyMMdd');
-
-  // Pull additional data from billingAddress if available.
+  // Use the order's fulfilledOn date as the payment date.
+  const lastPaymentDate = format(parseISO(orderDetails.fulfilledOn), 'yyyyMMdd');
+  // Compute the next due date based on the fulfilledOn date.
+  const nextDueDateObj = computeNextDueDate(orderDetails.fulfilledOn, subscriptionPlan);
+  const nextDueDate = format(nextDueDateObj, 'yyyyMMdd');
+  
+  // Pull additional data from billingAddress.
   const billing = orderDetails.billingAddress || {};
   const firstName = billing.firstName || '';
   const lastName = billing.lastName || '';
-
-  // Create/update the subscription record
+  
+  // Also capture the product name for confirmation.
+  const productName = subscriptionItem.productName;
+  
+  // Create/update the subscription record.
   subscriptionsStore[email] = {
     customerEmail: email,
     lastPaymentDate: lastPaymentDate,  // in YYYYMMDD format
@@ -135,10 +137,10 @@ function updateSubscriptionRecord(orderDetails) {
     orderId: orderDetails.id,
     firstName: firstName,
     lastName: lastName,
-    // Optionally, store other order fields as needed
+    productName: productName           // new field
   };
-
-  console.log(`Updated subscription record for ${email}`);
+  
+  console.log(`Updated subscription record for ${email}: ${JSON.stringify(subscriptionsStore[email])}`);
   saveSubscriptions();
 }
 
@@ -431,14 +433,9 @@ app.get('/delete-webhook/:id', async (req, res) => {
  * Uses a narrow date window based on createdOn.
  * Now prints out the search parameters and the results found.
  */
-async function getOrderDetailsByOrderId(orderId, createdOn) {
+async function getOrderDetailsByOrderId(orderId) {
   try {
-    const orderDate = new Date(createdOn);
-    const modifiedAfter = new Date(orderDate.getTime() - 60000).toISOString();
-    const modifiedBefore = new Date(orderDate.getTime() + 60000).toISOString();
-    const url = `https://api.squarespace.com/1.0/commerce/orders?modifiedAfter=${encodeURIComponent(modifiedAfter)}&modifiedBefore=${encodeURIComponent(modifiedBefore)}`;
-    console.log(`Searching for orderId: ${orderId}`);
-    console.log(`ModifiedAfter: ${modifiedAfter}, ModifiedBefore: ${modifiedBefore}`);
+    const url = `https://api.squarespace.com/1.0/commerce/orders/${orderId}`;
     console.log(`GET ${url}`);
     const response = await axios.get(url, {
       headers: {
@@ -446,16 +443,9 @@ async function getOrderDetailsByOrderId(orderId, createdOn) {
         'User-Agent': process.env.USER_AGENT
       }
     });
-    if (response.data && Array.isArray(response.data.result)) {
-      console.log("Orders retrieved:", response.data.result.map(o => o.id));
-      // Check both the internal id and the salesOrderId
-      const order = response.data.result.find(o => o.id === orderId || o.salesOrderId === orderId);
-      if (order) {
-        console.log("Found order:", order);
-      } else {
-        console.log(`Order with id ${orderId} not found in the retrieved data.`);
-      }
-      return order;
+    if (response.data) {
+      console.log("Order details retrieved:", response.data);
+      return response.data;
     }
     return null;
   } catch (error) {
@@ -529,7 +519,7 @@ app.post('/webhook/squarespace', async (req, res) => {
   }
   
   // Retrieve order details using API_KEY.
-  const orderDetails = await getOrderDetailsByOrderId(orderId, createdOn);
+  const orderDetails = await getOrderDetailsByOrderId(orderId);
   if (!orderDetails) {
     console.error(`Order with id ${orderId} not found.`);
     return res.status(404).send('Order not found');

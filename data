@@ -1,0 +1,81 @@
+{
+    "result": [
+        {
+            "id": "67e1c9090356ee0ab5f13e03",
+            "orderNumber": "3",
+            "createdOn": "2025-03-24T21:05:11.040Z",
+            "modifiedOn": "2025-03-24T22:03:16.912Z",
+            "channel": "web",
+            "testmode": false,
+            "customerEmail": "johnkwin@gmail.com",
+            "billingAddress": {
+                "firstName": "John",
+                "lastName": "Kinsey",
+                "address1": "360 Se 53Rd Ct",
+                "address2": null,
+                "city": "OCALA",
+                "state": "FL",
+                "countryCode": "US",
+                "postalCode": "34474",
+                "phone": "13522865932"
+            },
+            "shippingAddress": null,
+            "fulfillmentStatus": "FULFILLED",
+            "lineItems": [
+                {
+                    "id": "67e1c8e33783df6d04ccf5f8",
+                    "variantId": "a02891c7-067e-4054-b936-b14de6fbf5f9",
+                    "sku": "SQ7797423",
+                    "weight": 0.0,
+                    "width": 0.0,
+                    "length": 0.0,
+                    "height": 0.0,
+                    "productId": "67e1c87f18529b2cf936b60c",
+                    "productName": "test order",
+                    "quantity": 1,
+                    "unitPricePaid": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "variantOptions": [],
+                    "customizations": null,
+                    "imageUrl": null,
+                    "lineItemType": "SERVICE"
+                }
+            ],
+            "internalNotes": [],
+            "shippingLines": [],
+            "discountLines": [],
+            "formSubmission": null,
+            "fulfillments": [],
+            "subtotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "shippingTotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "discountTotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "taxTotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "refundedTotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "grandTotal": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "channelName": "Squarespace",
+            "externalOrderReference": null,
+            "fulfilledOn": "2025-03-24T22:03:16.911Z",
+            "priceTaxInterpretation": "EXCLUSIVE"
+        }
+    ]
+}
