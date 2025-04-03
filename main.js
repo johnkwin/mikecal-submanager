@@ -88,20 +88,21 @@ function isActiveSubscription(subscriptionRecord) {
 function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
   
-  // Check for sales line items instead of payments.
-  if (!orderDetails.lineItems || orderDetails.lineItems.length === 0) {
-    console.log(`No sales line items for order ${orderDetails.id}. Skipping subscription update.`);
+  // Use whichever key exists: "salesLineItems" or "lineItems"
+  const items = orderDetails.salesLineItems || orderDetails.lineItems;
+  if (!items || items.length === 0) {
+    console.log(`No subscription items for order ${orderDetails.id}. Skipping subscription update.`);
     return;
   }
-  // Find the line item that appears to be a subscription.
-  // (Assuming lineItemType "PAYWALL_PRODUCT" is used for subscriptions.)
-  const subscriptionItem = orderDetails.lineItems.find(item => item.lineItemType === "PAYWALL_PRODUCT");
+  
+  // Find the subscription line item (assuming lineItemType "PAYWALL_PRODUCT" indicates a subscription)
+  const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
   if (!subscriptionItem) {
     console.log(`No subscription sales line item for order ${orderDetails.id}. Skipping subscription update.`);
     return;
   }
   
-  // Use unitPricePaid from the sales line item.
+  // Extract the subscription amount from unitPricePaid.
   const paymentAmount = subscriptionItem.unitPricePaid.value;
   let subscriptionPlan = '';
   if (paymentAmount === '19.99') {
@@ -113,10 +114,12 @@ function updateSubscriptionRecord(orderDetails) {
     return;
   }
   
-  // Use the order's fulfilledOn date as the payment date.
-  const lastPaymentDate = format(parseISO(orderDetails.fulfilledOn), 'yyyyMMdd');
-  // Compute the next due date based on the fulfilledOn date.
-  const nextDueDateObj = computeNextDueDate(orderDetails.fulfilledOn, subscriptionPlan);
+  // Use the order's fulfilledOn date if available, otherwise fall back to createdOn.
+  const paymentDate = orderDetails.fulfilledOn || orderDetails.createdOn;
+  const lastPaymentDate = format(parseISO(paymentDate), 'yyyyMMdd');
+  
+  // Compute the next due date based on the paymentDate.
+  const nextDueDateObj = computeNextDueDate(paymentDate, subscriptionPlan);
   const nextDueDate = format(nextDueDateObj, 'yyyyMMdd');
   
   // Pull additional data from billingAddress.
@@ -127,17 +130,17 @@ function updateSubscriptionRecord(orderDetails) {
   // Also capture the product name for confirmation.
   const productName = subscriptionItem.productName;
   
-  // Create/update the subscription record.
+  // Create or update the subscription record.
   subscriptionsStore[email] = {
     customerEmail: email,
-    lastPaymentDate: lastPaymentDate,  // in YYYYMMDD format
-    paymentAmount: paymentAmount,
-    subscriptionPlan: subscriptionPlan,
-    nextDueDate: nextDueDate,          // in YYYYMMDD format
+    lastPaymentDate,      // in YYYYMMDD format
+    paymentAmount,
+    subscriptionPlan,
+    nextDueDate,          // in YYYYMMDD format
     orderId: orderDetails.id,
-    firstName: firstName,
-    lastName: lastName,
-    productName: productName           // new field
+    firstName,
+    lastName,
+    productName           // new field for clarity
   };
   
   console.log(`Updated subscription record for ${email}: ${JSON.stringify(subscriptionsStore[email])}`);
