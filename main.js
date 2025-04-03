@@ -83,7 +83,7 @@ function isActiveSubscription(subscriptionRecord) {
 
 /**
  * Update (or create) a subscription record from order details.
- * This function extracts the most recent payment data and additional fields.
+ * This function extracts the most recent payment data and additional fields.s
  */
 function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
