@@ -567,49 +567,61 @@ function toCareingtonEffectiveDate(dateString) {
   const year = dateObj.getFullYear();
   const month = dateObj.getMonth();
   const day = dateObj.getDate();
-  return (day <= 15) ? new Date(year, month, 1) : (month === 11 ? new Date(year + 1, 0, 1) : new Date(year, month + 1, 1));
+  if (day <= 15) return new Date(year, month, 1);
+  return month === 11 ? new Date(year + 1, 0, 1) : new Date(year, month + 1, 1);
 }
 
 function buildMemberLine(member) {
-  const effectiveDateObj = toCareingtonEffectiveDate(member.effectiveDate);
-  const effectiveDateStr = formatDateMMDDYYYY(effectiveDateObj);
-  let dobStr = '';
-  if (member.dob) {
-    dobStr = formatDateMMDDYYYY(new Date(member.dob));
-  }
-  
+  // 1. Dates
+  const effDate = formatDateMMDDYYYY(toCareingtonEffectiveDate(member.effectiveDate));
+  const dob = member.dateOfBirth ? formatDateMMDDYYYY(new Date(member.dateOfBirth)) : '';
+  const termDate = member.terminationDate || '';
+
+  // 2. Fields in exact order:
   const fields = [
-    member.title || '',
-    member.firstName || '',
-    member.lastName || '',
-    member.uniqueId || '',
-    member.sequenceNum || '',
-    member.address1 || '',
-    member.address2 || '',
-    member.city || '',
-    member.state || '',
-    member.zip || '',
-    member.phone || '',
-    dobStr,
-    member.gender || '',
-    member.email || '',
-    effectiveDateStr,
-    member.groupCode || '',
-    member.coverageType || ''
+    member.title || '',              // 3, Alpha
+    member.firstName || '',          // 15, Alpha (required)
+    member.middleName || '',         // 1, Alpha
+    member.lastName || '',           // 20, Alpha (required)
+    member.postName || '',           // 4, Alpha/Numeric
+    member.uniqueId || '',           // 12, Numeric (required)
+    member.sequenceNum || '',        // 2, Numeric (required)
+    member.filler || '',             // 9, Numeric
+    member.address1 || '',           // 33, Alpha/Numeric (required)
+    member.address2 || '',           // 33, Alpha/Numeric
+    member.city || '',               // 21, Alpha (required)
+    member.state || '',              // 2, Alpha (required)
+    member.zip || '',                // 5, Numeric (required)
+    member.plus4 || '',              // 4, Numeric
+    member.homePhone || '',          // 10, Numeric
+    member.workPhone || '',          // 10, Numeric
+    member.coverage || '',           // 2, Alpha (required)
+    member.groupCode || '',          // 10, Alpha/Numeric (required)
+    termDate,                        // 8, Numeric
+    effDate,                         // 8, Numeric (required)
+    dob,                             // 8, Numeric (required)
+    member.relation || '',           // 1, Alpha
+    member.studentStatus || '',      // 1, Alpha
+    member.filler2 || '',            // 4, Alpha/Numeric
+    member.gender || '',             // 1, Alpha
+    member.email || ''               // 64, Alpha/Numeric (required)
   ];
-  
+
   return fields.join('|');
 }
 
-function generateEligibilityFile(membersArray, parentGroupCode, isFull = true) {
-  const datePart = formatDateMMDDYYYY(new Date());
+function generateEligibilityFile(members, parentGroupCode, isFull = true) {
+  const today = new Date();
+  const datePart = formatDateMMDDYYYY(today).slice(0,6); // MMDDYY
   const suffix = isFull ? 'full' : 'delta';
-  const fileName = `${parentGroupCode}${datePart}_${suffix}.csv`;
-  const lines = membersArray.map(buildMemberLine);
-  const outputFilePath = path.join(__dirname, fileName);
-  fs.writeFileSync(outputFilePath, lines.join('\n'), 'utf8');
-  console.log(`Eligibility file created: ${outputFilePath}`);
-  return outputFilePath;
+  const ext = '.txt';  // or .csv
+  const fileName = `${parentGroupCode}${datePart}_${suffix}${ext}`;
+  const filePath = path.join(__dirname, fileName);
+
+  const lines = members.map(buildMemberLine);
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  console.log(`Eligibility file generated: ${filePath}`);
+  return filePath;
 }
 
 async function uploadEligibilityFile(localFilePath) {
