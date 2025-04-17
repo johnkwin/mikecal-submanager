@@ -224,7 +224,7 @@ function generateSubscriptionSDF(subscriptions) {
 async function uploadSubscriptionData(userData, fileName) {
   try {
     await sftp.connect(sftpConfig);
-    const filePath = `/subscriptions/${fileName}.json`;
+    const filePath = `${fileName}.json`;
     await sftp.put(Buffer.from(JSON.stringify(userData, null, 2)), filePath);
     console.log(`Uploaded subscription data for ${userData.username}`);
     await sftp.end();
@@ -236,7 +236,7 @@ async function uploadSubscriptionData(userData, fileName) {
 async function deleteSubscriptionFile(fileName) {
   try {
     await sftp.connect(sftpConfig);
-    const filePath = `/subscriptions/${fileName}.json`;
+    const filePath = `${fileName}.json`;
     await sftp.delete(filePath);
     console.log(`Deleted subscription file for ${fileName}`);
     await sftp.end();
