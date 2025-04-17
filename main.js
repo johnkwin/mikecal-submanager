@@ -167,7 +167,7 @@ async function uploadSubscriptionSDF(filePath) {
   try {
     await sftp.connect(sftpConfig);
     // For example, place the file in /subscriptions on SFTP.
-    const remoteFilePath = `/subscriptions/${path.basename(filePath)}`;
+    const remoteFilePath = `${path.basename(filePath)}`;
     await sftp.put(filePath, remoteFilePath);
     console.log(`Uploaded subscription SDF file: ${remoteFilePath}`);
     await sftp.end();
