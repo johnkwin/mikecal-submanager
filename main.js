@@ -626,7 +626,7 @@ function generateEligibilityFile(members, parentGroupCode, isFull = true) {
 
 async function uploadEligibilityFile(localFilePath) {
   const remoteFileName = path.basename(localFilePath);
-  const remoteFilePath = `/eligibility/${remoteFileName}`;
+  const remoteFilePath = `${remoteFileName}`;
   try {
     await sftp.connect(sftpConfig);
     await sftp.put(localFilePath, remoteFilePath);
@@ -661,7 +661,7 @@ app.get('/test-generate-file', async (req, res) => {
   const testMembers = [testMember];
   const filePath = generateEligibilityFile(testMembers, 'TESTGRP', true);
   // Optionally, uncomment the following line to upload the file to SFTP:
-  // await uploadEligibilityFile(filePath);
+await uploadEligibilityFile(filePath);
   res.send(`Test eligibility file generated at: ${filePath}`);
 });
 
