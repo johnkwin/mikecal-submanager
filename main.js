@@ -615,7 +615,7 @@ function generateEligibilityFile(members, parentGroupCode, isFull = true) {
 }
 
 async function uploadEligibilityFile(localFilePath) {
-  const remote = `/eligibility/${path.basename(localFilePath)}`;
+  const remote = `${path.basename(localFilePath)}`;
   await sftp.connect(sftpConfig);
   await sftp.put(localFilePath, remote);
   console.log(`Uploaded eligibility file to: ${remote}`);
