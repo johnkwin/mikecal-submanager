@@ -530,16 +530,29 @@ app.post('/webhook/squarespace', async (req, res) => {
   
   // For creation or update to FULFILLED, update the subscription record.
   if (topic === 'order.create' || (topic === 'order.update' && event.data.update === 'FULFILLED')) {
+    // 1) Update our subscriptions.json store
     updateSubscriptionRecord(orderDetails);
-    // (Optional: Continue to upload individual JSON if needed)
-    await uploadSubscriptionData({ username: orderDetails.customerEmail }, orderDetails.id);
-    res.status(200).send('Order processed and subscription record updated.');
-  } else if (topic === 'order.update' && event.data.update === 'CANCELED') {
+  
+    // 2) Re-generate the full SDF file from the entire store
+    const sdfPath = generateSubscriptionSDF(subscriptionsStore);
+  
+    // 3) Upload it to the SFTP
+    await uploadSubscriptionSDF(sdfPath);
+  
+    res.status(200).send('Order processed and full SDF file re‑uploaded.');
+  }
+  else if (topic === 'order.update' && event.data.update === 'CANCELED') {
+    // 1) Remove from the store
     removeSubscriptionRecord(orderDetails);
-    await deleteSubscriptionFile(orderDetails.id);
-    res.status(200).send('Order processed and subscription record removed.');
-  } else {
-    res.status(200).send('Webhook processed with no action.');
+  
+    // 2) Re-generate & re-upload the full SDF file
+    const sdfPath = generateSubscriptionSDF(subscriptionsStore);
+    await uploadSubscriptionSDF(sdfPath);
+  
+    res.status(200).send('Cancellation processed and full SDF file re‑uploaded.');
+  }
+  else {
+    res.status(200).send('Webhook received; no subscription action taken.');
   }
 });
 
