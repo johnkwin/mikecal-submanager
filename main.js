@@ -560,45 +560,52 @@ function toCareingtonEffectiveDate(dateString) {
   return month === 11 ? new Date(year + 1, 0, 1) : new Date(year, month + 1, 1);
 }
 
-function buildMemberLine(m) {
-  const pad = (s, len, direction='right') => {
-    s = String(s||'');
-    return direction==='right'
-      ? s.padEnd(len,' ')
-      : s.padStart(len,' ');
+function buildMemberLine(member) {
+  // grab & sanitize each value, trimming whitespace and truncating to max length
+  const clean = (val, max) => {
+    if (!val) return '';
+    let s = val.toString().trim();
+    return s.length > max ? s.slice(0, max) : s;
   };
 
+  // compute dates
+  const effDate = formatDateMMDDYYYY(toCareingtonEffectiveDate(member.effectiveDate)); // MMDDYYYY
+  const termDate = member.terminationDate || '';   // MMDDYYYY or empty
+  const dob      = member.dateOfBirth     || '';   // MMDDYYYY or empty
+
   const fields = [
-    pad(m.title,           3),
-    pad(m.firstName,      15),
-    pad(m.middleName,      1),
-    pad(m.lastName,       20),
-    pad(m.postName,        4),
-    pad(m.uniqueId,       12,'left'),
-    pad(m.sequenceNum,     2,'left'),
-    pad(m.filler,          9),
-    pad(m.address1,       33),
-    pad(m.address2,       33),
-    pad(m.city,           21),
-    pad(m.state,           2),
-    pad(m.zip,             5,'left'),
-    pad(m.plus4,           4,'left'),
-    pad(m.homePhone,      10,'left'),
-    pad(m.workPhone,      10,'left'),
-    pad(m.coverage,        2),
-    pad(m.groupCode,      10),
-    pad(m.terminationDate, 8,'left'),
-    pad(m.effectiveDate,   8,'left'),
-    pad(m.dateOfBirth,     8,'left'),
-    pad(m.relation,        1),
-    pad(m.studentStatus,   1),
-    pad(m.filler2,         4),
-    pad(m.gender,          1),
-    pad(m.email,          64)
+    clean(member.title,        3),   // Title
+    clean(member.firstName,   15),   // First Name (required)
+    clean(member.middleName,   1),   // Middle initial
+    clean(member.lastName,    20),   // Last Name (required)
+    clean(member.postName,     4),   // Post Name (JR,SR,etc)
+    clean(member.uniqueId,    12),   // Unique ID (required)
+    clean(member.sequenceNum,  2),   // Sequence number (00,01…)
+    '',                             // filler
+    clean(member.address1,    33),   // Address1 (required)
+    clean(member.address2,    33),   // Address2
+    clean(member.city,        21),   // City (required)
+    clean(member.state,        2),   // State (required)
+    clean(member.zip,          5),   // Zip (required)
+    clean(member.plus4,        4),   // Plus‑4
+    clean(member.homePhone,   10),   // Home phone
+    clean(member.workPhone,   10),   // Work phone
+    clean(member.coverage,     2),   // Coverage (MF,MO,MD,MS)
+    clean(PARENT_GROUP_CODE,  10),   // Group code (required)
+    termDate,                       // Term date
+    effDate,                        // Effective date (required)
+    dob,                            // Date of birth (required)
+    clean(member.relation,        1),// Relation (C,O,S)
+    clean(member.studentStatus,   1),// Student status (Y/N)
+    '',                             // filler2
+    clean(member.gender,         1), // Gender (M/F)
+    clean(member.email,         64)  // Email (required)
   ];
 
+  // join with pipes – empty strings become consecutive pipes
   return fields.join('|');
 }
+
 
 function generateEligibilityFile(members, parentGroupCode, isFull = true) {
   const today    = new Date();
