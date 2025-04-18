@@ -561,63 +561,73 @@ function toCareingtonEffectiveDate(dateString) {
 }
 
 function buildMemberLine(member) {
-  // grab & sanitize each value, trimming whitespace and truncating to max length
-  const clean = (val, max) => {
-    if (!val) return '';
-    let s = val.toString().trim();
-    return s.length > max ? s.slice(0, max) : s;
+  const formatMMDDYYYY = d => {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    return mm + dd + yyyy;
   };
 
-  // compute dates
-  const effDate = formatDateMMDDYYYY(toCareingtonEffectiveDate(member.effectiveDate)); // MMDDYYYY
-  const termDate = member.terminationDate || '';   // MMDDYYYY or empty
-  const dob      = member.dateOfBirth     || '';   // MMDDYYYY or empty
+  // Careington wants effective date = 1st of month (with mid-month logic)
+  const toCareingtonEffectiveDate = dateString => {
+    const d = dateString ? new Date(dateString) : new Date();
+    const day = d.getDate(), m = d.getMonth(), y = d.getFullYear();
+    if (day <= 15) return new Date(y, m, 1);
+    return m === 11 ? new Date(y + 1, 0, 1) : new Date(y, m + 1, 1);
+  };
+
+  const effDate = formatMMDDYYYY(toCareingtonEffectiveDate(member.effectiveDate));
+  const dob     = member.dateOfBirth
+                ? formatMMDDYYYY(new Date(member.dateOfBirth))
+                : '';
+  const term    = member.terminationDate || '';
 
   const fields = [
-    clean(member.title,        3),   // Title
-    clean(member.firstName,   15),   // First Name (required)
-    clean(member.middleName,   1),   // Middle initial
-    clean(member.lastName,    20),   // Last Name (required)
-    clean(member.postName,     4),   // Post Name (JR,SR,etc)
-    clean(member.uniqueId,    12),   // Unique ID (required)
-    clean(member.sequenceNum,  2),   // Sequence number (00,01…)
-    '',                             // filler
-    clean(member.address1,    33),   // Address1 (required)
-    clean(member.address2,    33),   // Address2
-    clean(member.city,        21),   // City (required)
-    clean(member.state,        2),   // State (required)
-    clean(member.zip,          5),   // Zip (required)
-    clean(member.plus4,        4),   // Plus‑4
-    clean(member.homePhone,   10),   // Home phone
-    clean(member.workPhone,   10),   // Work phone
-    clean(member.coverage,     2),   // Coverage (MF,MO,MD,MS)
-    clean(PARENT_GROUP_CODE,  10),   // Group code (required)
-    termDate,                       // Term date
-    effDate,                        // Effective date (required)
-    dob,                            // Date of birth (required)
-    clean(member.relation,        1),// Relation (C,O,S)
-    clean(member.studentStatus,   1),// Student status (Y/N)
-    '',                             // filler2
-    clean(member.gender,         1), // Gender (M/F)
-    clean(member.email,         64)  // Email (required)
+    member.title        || '', // Title (3)
+    member.firstName    || '', // First Name (15)
+    member.middleName   || '', // Middle Initial (1)
+    member.lastName     || '', // Last Name (20)
+    member.postName     || '', // Post Name (4)
+    member.uniqueId     || '', // Unique ID (12)
+    member.sequenceNum  || '', // Sequence Number (2)
+    member.filler       || '', // Filler (9)
+    member.address1     || '', // Address Line 1 (33)
+    member.address2     || '', // Address Line 2 (33)
+    member.city         || '', // City (21)
+    member.state        || '', // State (2)
+    member.zip          || '', // Zip (5)
+    member.plus4        || '', // Plus 4 (4)
+    member.homePhone    || '', // Home Phone (10)
+    member.workPhone    || '', // Work Phone (10)
+    member.coverage     || '', // Coverage (2)
+    member.groupCode    || '', // Group Code (10)
+    term,                       // Termination Date (8)
+    effDate,                    // Effective Date (8)
+    dob,                        // Date of Birth (8)
+    member.relation     || '', // Relation (1)
+    member.studentStatus|| '', // Student Status (1)
+    member.filler2      || '', // Filler (4)
+    member.gender       || '', // Gender (1)
+    member.email        || ''  // Email (64)
   ];
 
-  // join with pipes – empty strings become consecutive pipes
+  // this will produce exactly N pipes and no padding
   return fields.join('|');
 }
 
 
 function generateEligibilityFile(members, parentGroupCode, isFull = true) {
   const today    = new Date();
-  const mmddyy   = format(today, 'MMddyy');
+  const mmddyy   = formatDateMMDDYYYY(today).slice(0,6); // "MMDDYY"
   const suffix   = isFull ? 'full' : 'delta';
-  const ext      = '.txt';
+  const ext      = '.txt';  // or ".csv"
   const fileName = `${parentGroupCode}${mmddyy}_${suffix}${ext}`;
   const filePath = path.join(__dirname, fileName);
 
   const lines = members.map(buildMemberLine);
   fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
-  console.log(`→ Careington file: ${fileName}`);
+
+  console.log(`Eligibility file created: ${filePath}`);
   return filePath;
 }
 
