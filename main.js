@@ -87,63 +87,57 @@ function isActiveSubscription(subscriptionRecord) {
  */
 function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
-  
-  // Use whichever key exists: "salesLineItems" or "lineItems"
-  const items = orderDetails.salesLineItems || orderDetails.lineItems;
-  if (!items || items.length === 0) {
-    console.log(`No subscription items for order ${orderDetails.id}. Skipping subscription update.`);
-    return;
-  }
-  
-  // Find the subscription line item (assuming lineItemType "PAYWALL_PRODUCT" indicates a subscription)
-  const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
-  if (!subscriptionItem) {
-    console.log(`No subscription sales line item for order ${orderDetails.id}. Skipping subscription update.`);
-    return;
-  }
-  
-  // Extract the subscription amount from unitPricePaid.
-  const paymentAmount = subscriptionItem.unitPricePaid.value;
-  let subscriptionPlan = '';
-  if (paymentAmount === '19.99') {
-    subscriptionPlan = 'Monthly';
-  } else if (paymentAmount === '159.00') {
-    subscriptionPlan = 'Annual';
-  } else {
-    console.log(`Payment amount ${paymentAmount} not recognized for subscription.`);
-    return;
-  }
-  
-  // Use the order's fulfilledOn date if available, otherwise fall back to createdOn.
-  const paymentDate = orderDetails.fulfilledOn || orderDetails.createdOn;
-  const lastPaymentDate = format(parseISO(paymentDate), 'yyyyMMdd');
-  
-  // Compute the next due date based on the paymentDate.
-  const nextDueDateObj = computeNextDueDate(paymentDate, subscriptionPlan);
-  const nextDueDate = format(nextDueDateObj, 'yyyyMMdd');
-  
-  // Pull additional data from billingAddress.
   const billing = orderDetails.billingAddress || {};
-  const firstName = billing.firstName || '';
-  const lastName = billing.lastName || '';
-  
-  // Also capture the product name for confirmation.
-  const productName = subscriptionItem.productName;
-  
-  // Create or update the subscription record.
+
+  // determine plan & dates (unchanged)
+  const items = orderDetails.salesLineItems || orderDetails.lineItems;
+  const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
+  const paymentAmount   = subscriptionItem.unitPricePaid.value;
+  const subscriptionPlan= paymentAmount==='19.99' ? 'Monthly' : 'Annual';
+  const paymentDate     = orderDetails.fulfilledOn || orderDetails.createdOn;
+  const lastPaymentDate = format(parseISO(paymentDate), 'yyyyMMdd');
+  const nextDueDate     = format(computeNextDueDate(paymentDate, subscriptionPlan), 'yyyyMMdd');
+
+  // Build **all** fields required by CI007
   subscriptionsStore[email] = {
-    customerEmail: email,
-    lastPaymentDate,      // in YYYYMMDD format
+    // ————— pipe‑fields —————
+    title:           '',                       // N
+    firstName:       billing.firstName  || '', // Y
+    middleName:      '',                       // N
+    lastName:        billing.lastName   || '', // Y
+    postName:        '',                       // N
+    uniqueId:        orderDetails.id,          // Y
+    sequenceNum:     '00',                     // Y=primary
+    filler:          '',                       // N
+    address1:        billing.address1   || '', // Y
+    address2:        billing.address2   || '', // N
+    city:            billing.city       || '', // Y
+    state:           billing.state      || '', // Y
+    zip:             billing.postalCode || '', // Y
+    plus4:           '',                       // N
+    homePhone:       billing.phone      || '', // N
+    workPhone:       '',                       // N
+    coverage:        'MO',                     // Y=MEMBER ONLY
+    groupCode:       process.env.CAREINGTON_GROUP_CODE, // Y
+    terminationDate: '',                       // N
+    effectiveDate:   lastPaymentDate,          // Y (YYYYMMDD)
+    dateOfBirth:     '',                       // Y*
+    relation:        '',                       // N
+    studentStatus:   '',                       // N
+    filler2:         '',                       // N
+    gender:          '',                       // N
+    email:           email,                    // Y
+
+    // ————— extras for your own bookkeeping —————
+    lastPaymentDate,
     paymentAmount,
     subscriptionPlan,
-    nextDueDate,          // in YYYYMMDD format
+    nextDueDate,
     orderId: orderDetails.id,
-    firstName,
-    lastName,
-    productName           // new field for clarity
+    productName: subscriptionItem.productName
   };
-  
-  console.log(`Updated subscription record for ${email}: ${JSON.stringify(subscriptionsStore[email])}`);
+
+  console.log(`Updated subscription record for ${email}`);
   saveSubscriptions();
 }
 
@@ -495,65 +489,47 @@ async function getRandomOrder() {
  * Also, if a test webhook is received with "test-order-id", a random order is chosen.
  */
 app.post('/webhook/squarespace', async (req, res) => {
-  console.log("Raw POST data received:", JSON.stringify(req.body, null, 2));
-  const event = req.body;
-  if (!event || !event.data) {
-    return res.status(400).send('Invalid webhook data');
-  }
-  
-  let orderId = event.data.orderId;
-  let createdOn = event.createdOn;
-  const topic = event.topic;
-  
-  if (!orderId || !createdOn) {
-    return res.status(400).send('Missing orderId or createdOn in webhook data');
-  }
-  
-  // If the webhook is a test (orderId === "test-order-id"), select a random order.
+  console.log("Raw POST data:", JSON.stringify(req.body, null, 2));
+  const { topic, data, createdOn } = req.body;
+  if (!data || !data.orderId) return res.status(400).send('Invalid webhook');
+
+  let orderId = data.orderId;
+
+  // test mode → random order
   if (orderId === 'test-order-id') {
     const randomOrder = await getRandomOrder();
-    if (randomOrder) {
-      orderId = randomOrder.id;
-      createdOn = randomOrder.createdOn;
-      console.log(`Test webhook detected. Overriding with random order id: ${orderId}`);
-    } else {
-      return res.status(404).send("No orders available for test webhook.");
-    }
+    if (!randomOrder) return res.status(404).send("No orders for test");
+    orderId = randomOrder.id;
   }
-  
-  // Retrieve order details using API_KEY.
+
+  // fetch full order by API_KEY
   const orderDetails = await getOrderDetailsByOrderId(orderId);
-  if (!orderDetails) {
-    console.error(`Order with id ${orderId} not found.`);
-    return res.status(404).send('Order not found');
-  }
-  
-  // For creation or update to FULFILLED, update the subscription record.
-  if (topic === 'order.create' || (topic === 'order.update' && event.data.update === 'FULFILLED')) {
-    // 1) Update our subscriptions.json store
+  if (!orderDetails) return res.status(404).send('Order not found');
+
+  // only care about create/fulfill vs cancel
+  if (
+    topic === 'order.create' ||
+   (topic === 'order.update' && data.update === 'FULFILLED')
+  ) {
     updateSubscriptionRecord(orderDetails);
-  
-    // 2) Re-generate the full SDF file from the entire store
-    const sdfPath = generateSubscriptionSDF(subscriptionsStore);
-  
-    // 3) Upload it to the SFTP
-    await uploadSubscriptionSDF(sdfPath);
-  
-    res.status(200).send('Order processed and full SDF file re‑uploaded.');
-  }
-  else if (topic === 'order.update' && event.data.update === 'CANCELED') {
-    // 1) Remove from the store
+
+  } else if (topic === 'order.update' && data.update === 'CANCELED') {
     removeSubscriptionRecord(orderDetails);
-  
-    // 2) Re-generate & re-upload the full SDF file
-    const sdfPath = generateSubscriptionSDF(subscriptionsStore);
-    await uploadSubscriptionSDF(sdfPath);
-  
-    res.status(200).send('Cancellation processed and full SDF file re‑uploaded.');
+
+  } else {
+    return res.status(200).send('No action for this event');
   }
-  else {
-    res.status(200).send('Webhook received; no subscription action taken.');
-  }
+
+  // rebuild & push **eligibility** file (pipe‑delimited per CI007)
+  const membersArray = Object.values(subscriptionsStore);
+  const filePath = generateEligibilityFile(
+    membersArray,
+    process.env.CAREINGTON_GROUP_CODE,
+    true
+  );
+  await uploadEligibilityFile(filePath);
+
+  res.status(200).send('Eligibility file updated');
 });
 
 /* ========= Daily Scheduled Job to Re-Generate SDF File ========= */
@@ -584,70 +560,66 @@ function toCareingtonEffectiveDate(dateString) {
   return month === 11 ? new Date(year + 1, 0, 1) : new Date(year, month + 1, 1);
 }
 
-function buildMemberLine(member) {
-  // 1. Dates
-  const effDate = formatDateMMDDYYYY(toCareingtonEffectiveDate(member.effectiveDate));
-  const dob = member.dateOfBirth ? formatDateMMDDYYYY(new Date(member.dateOfBirth)) : '';
-  const termDate = member.terminationDate || '';
+function buildMemberLine(m) {
+  const pad = (s, len, direction='right') => {
+    s = String(s||'');
+    return direction==='right'
+      ? s.padEnd(len,' ')
+      : s.padStart(len,' ');
+  };
 
-  // 2. Fields in exact order:
   const fields = [
-    member.title || '',              // 3, Alpha
-    member.firstName || '',          // 15, Alpha (required)
-    member.middleName || '',         // 1, Alpha
-    member.lastName || '',           // 20, Alpha (required)
-    member.postName || '',           // 4, Alpha/Numeric
-    member.uniqueId || '',           // 12, Numeric (required)
-    member.sequenceNum || '',        // 2, Numeric (required)
-    member.filler || '',             // 9, Numeric
-    member.address1 || '',           // 33, Alpha/Numeric (required)
-    member.address2 || '',           // 33, Alpha/Numeric
-    member.city || '',               // 21, Alpha (required)
-    member.state || '',              // 2, Alpha (required)
-    member.zip || '',                // 5, Numeric (required)
-    member.plus4 || '',              // 4, Numeric
-    member.homePhone || '',          // 10, Numeric
-    member.workPhone || '',          // 10, Numeric
-    member.coverage || '',           // 2, Alpha (required)
-    member.groupCode || '',          // 10, Alpha/Numeric (required)
-    termDate,                        // 8, Numeric
-    effDate,                         // 8, Numeric (required)
-    dob,                             // 8, Numeric (required)
-    member.relation || '',           // 1, Alpha
-    member.studentStatus || '',      // 1, Alpha
-    member.filler2 || '',            // 4, Alpha/Numeric
-    member.gender || '',             // 1, Alpha
-    member.email || ''               // 64, Alpha/Numeric (required)
+    pad(m.title,           3),
+    pad(m.firstName,      15),
+    pad(m.middleName,      1),
+    pad(m.lastName,       20),
+    pad(m.postName,        4),
+    pad(m.uniqueId,       12,'left'),
+    pad(m.sequenceNum,     2,'left'),
+    pad(m.filler,          9),
+    pad(m.address1,       33),
+    pad(m.address2,       33),
+    pad(m.city,           21),
+    pad(m.state,           2),
+    pad(m.zip,             5,'left'),
+    pad(m.plus4,           4,'left'),
+    pad(m.homePhone,      10,'left'),
+    pad(m.workPhone,      10,'left'),
+    pad(m.coverage,        2),
+    pad(m.groupCode,      10),
+    pad(m.terminationDate, 8,'left'),
+    pad(m.effectiveDate,   8,'left'),
+    pad(m.dateOfBirth,     8,'left'),
+    pad(m.relation,        1),
+    pad(m.studentStatus,   1),
+    pad(m.filler2,         4),
+    pad(m.gender,          1),
+    pad(m.email,          64)
   ];
 
   return fields.join('|');
 }
 
 function generateEligibilityFile(members, parentGroupCode, isFull = true) {
-  const today = new Date();
-  const datePart = formatDateMMDDYYYY(today).slice(0,6); // MMDDYY
-  const suffix = isFull ? 'full' : 'delta';
-  const ext = '.txt';  // or .csv
-  const fileName = `${parentGroupCode}${datePart}_${suffix}${ext}`;
+  const today    = new Date();
+  const mmddyy   = format(today, 'MMddyy');
+  const suffix   = isFull ? 'full' : 'delta';
+  const ext      = '.txt';
+  const fileName = `${parentGroupCode}${mmddyy}_${suffix}${ext}`;
   const filePath = path.join(__dirname, fileName);
 
   const lines = members.map(buildMemberLine);
   fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
-  console.log(`Eligibility file generated: ${filePath}`);
+  console.log(`→ Careington file: ${fileName}`);
   return filePath;
 }
 
 async function uploadEligibilityFile(localFilePath) {
-  const remoteFileName = path.basename(localFilePath);
-  const remoteFilePath = `${remoteFileName}`;
-  try {
-    await sftp.connect(sftpConfig);
-    await sftp.put(localFilePath, remoteFilePath);
-    console.log(`Eligibility file uploaded to: ${remoteFilePath}`);
-    await sftp.end();
-  } catch (err) {
-    console.error("SFTP Upload Error:", err);
-  }
+  const remote = `/eligibility/${path.basename(localFilePath)}`;
+  await sftp.connect(sftpConfig);
+  await sftp.put(localFilePath, remote);
+  console.log(`Uploaded eligibility file to: ${remote}`);
+  await sftp.end();
 }
 
 app.get('/test-generate-file', async (req, res) => {
