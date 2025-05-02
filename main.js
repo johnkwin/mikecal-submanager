@@ -89,46 +89,50 @@ function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
   const billing = orderDetails.billingAddress || {};
 
-  // determine plan & dates (unchanged)
-  const items = orderDetails.salesLineItems || orderDetails.lineItems;
+  // … your existing plan / date logic …
+
+  // ——— NEW: pull DOB from the “Date of Birth” customization ———
+  let dateOfBirth = '';
   const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
-  const paymentAmount   = subscriptionItem.unitPricePaid.value;
-  const subscriptionPlan= paymentAmount==='19.99' ? 'Monthly' : 'Annual';
-  const paymentDate     = orderDetails.fulfilledOn || orderDetails.createdOn;
-  const lastPaymentDate = format(parseISO(paymentDate), 'yyyyMMdd');
-  const nextDueDate     = format(computeNextDueDate(paymentDate, subscriptionPlan), 'yyyyMMdd');
+    const dobField = subscriptionItem.customizations?.find(c =>
+      c.label.toLowerCase().includes('date of birth')
+    );
+   if (dobField && dobField.value) {
+      // input looks like "1/10/1982"
+     const parsed = parse(dobField.value, 'M/d/yyyy', new Date());
+     dateOfBirth = format(parsed, 'yyyy-MM-dd');
+    }
 
-  // Build **all** fields required by CI007
+  // — now stash everything into your store object —
   subscriptionsStore[email] = {
-    // ————— pipe‑fields —————
-    title:           '',                       // N
-    firstName:       billing.firstName  || '', // Y
-    middleName:      '',                       // N
-    lastName:        billing.lastName   || '', // Y
-    postName:        '',                       // N
-    uniqueId:        orderDetails.id,          // Y
-    sequenceNum:     '00',                     // Y=primary
-    filler:          '',                       // N
-    address1:        billing.address1   || '', // Y
-    address2:        billing.address2   || '', // N
-    city:            billing.city       || '', // Y
-    state:           billing.state      || '', // Y
-    zip:             billing.postalCode || '', // Y
-    plus4:           '',                       // N
-    homePhone:       billing.phone      || '', // N
-    workPhone:       '',                       // N
-    coverage:        'MO',                     // Y=MEMBER ONLY
-    groupCode:       process.env.CAREINGTON_GROUP_CODE, // Y
-    terminationDate: '',                       // N
-    effectiveDate:   lastPaymentDate,          // Y (YYYYMMDD)
-    dateOfBirth:     '',                       // Y*
-    relation:        '',                       // N
-    studentStatus:   '',                       // N
-    filler2:         '',                       // N
-    gender:          '',                       // N
-    email:           email,                    // Y
+    title:           '',
+    firstName:       billing.firstName  || '',
+    middleName:      '',
+    lastName:        billing.lastName   || '',
+    postName:        '',
+    uniqueId:        orderDetails.id,
+    sequenceNum:     '00',
+    filler:          '',
+    address1:        billing.address1   || '',
+    address2:        billing.address2   || '',
+    city:            billing.city       || '',
+    state:           billing.state      || '',
+    zip:             billing.postalCode || '',
+    plus4:           '',
+    homePhone:       billing.phone      || '',
+    workPhone:       '',
+    coverage:        'MO',
+    groupCode:       process.env.CAREINGTON_GROUP_CODE,
+    terminationDate: '',
+    effectiveDate:   effectiveDateIso,   // YYYY-MM-DD
+    dateOfBirth,                        // <— with our new parsed DOB
+    relation:        '',
+    studentStatus:   '',
+    filler2:         '',
+    gender:          '',
+    email,                               // customerEmail
 
-    // ————— extras for your own bookkeeping —————
+    // extras...
     lastPaymentDate,
     paymentAmount,
     subscriptionPlan,
