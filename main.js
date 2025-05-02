@@ -91,6 +91,7 @@ function updateSubscriptionRecord(orderDetails) {
 
   // determine plan & dates (unchanged)
   const items = orderDetails.salesLineItems || orderDetails.lineItems;
+  const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
   const paymentAmount   = subscriptionItem.unitPricePaid.value;
   const subscriptionPlan= paymentAmount==='19.99' ? 'Monthly' : 'Annual';
   const paymentDate     = orderDetails.fulfilledOn || orderDetails.createdOn;
@@ -103,7 +104,6 @@ function updateSubscriptionRecord(orderDetails) {
 
   // ——— NEW: pull DOB from the “Date of Birth” customization ———
   let dateOfBirth = '';
-  const subscriptionItem = items.find(item => item.lineItemType === "PAYWALL_PRODUCT");
     const dobField = subscriptionItem.customizations?.find(c =>
       c.label.toLowerCase().includes('date of birth')
     );
