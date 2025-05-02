@@ -89,7 +89,17 @@ function updateSubscriptionRecord(orderDetails) {
   const email = orderDetails.customerEmail;
   const billing = orderDetails.billingAddress || {};
 
-  // … your existing plan / date logic …
+  // determine plan & dates (unchanged)
+  const items = orderDetails.salesLineItems || orderDetails.lineItems;
+  const paymentAmount   = subscriptionItem.unitPricePaid.value;
+  const subscriptionPlan= paymentAmount==='19.99' ? 'Monthly' : 'Annual';
+  const paymentDate     = orderDetails.fulfilledOn || orderDetails.createdOn;
+  const lastPaymentDate = format(parseISO(paymentDate), 'yyyyMMdd');
+  const nextDueDate     = format(computeNextDueDate(paymentDate, subscriptionPlan), 'yyyyMMdd');
+  // ——— NEW: use createdOn for Careington effectiveDate ———
+  const createdOnRaw       = orderDetails.createdOn;                   // e.g. "2025-03-24T21:05:11.040Z"
+  const effectiveDateIso   = format(parseISO(createdOnRaw), 'yyyy-MM-dd'); 
+  // (we store ISO here so `new Date(effectiveDateIso)` works cleanly in buildMemberLine)
 
   // ——— NEW: pull DOB from the “Date of Birth” customization ———
   let dateOfBirth = '';
