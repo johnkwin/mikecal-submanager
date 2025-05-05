@@ -654,32 +654,137 @@ async function uploadEligibilityFile(localFilePath) {
 }
 
 app.get('/test-generate-file', async (req, res) => {
-  const testMember = {
-    title: 'Mr',
-    firstName: 'Test',
-    lastName: 'User',
-    uniqueId: 'test-order-id',
-    sequenceNum: '00',
-    address1: '123 Test St',
-    address2: '',
-    city: 'Testville',
-    state: 'TS',
-    zip: '12345',
-    phone: '5551234567',
-    dob: '1990-01-01',
-    gender: 'M',
-    email: 'test.user@example.com',
-    effectiveDate: '2025-03-18',
-    groupCode: 'TESTGRP',
-    coverageType: 'MEMBER'
-  };
-  
-  const testMembers = [testMember];
-  const filePath = generateEligibilityFile(testMembers, 'TESTGRP', true);
-  // Optionally, uncomment the following line to upload the file to SFTP:
-await uploadEligibilityFile(filePath);
+  // Use today for all effective dates
+  const todayIso = new Date().toISOString();
+  const parentCode = process.env.CAREINGTON_GROUP_CODE;
+
+  // Build an array with 3 primaries + 1 dependent
+  const testMembers = [
+    // Primary #1
+    {
+      title: 'Mr',
+      firstName: 'Alpha',
+      middleName: '',
+      lastName: 'One',
+      postName: '',
+      uniqueId: 'TEST001',
+      sequenceNum: '00',
+      filler: '',
+      address1: '100 Alpha St',
+      address2: '',
+      city: 'Alphaville',
+      state: 'TS',
+      zip: '11111',
+      plus4: '',
+      homePhone: '5551110001',
+      workPhone: '',
+      coverage: 'MO',
+      groupCode: parentCode,
+      terminationDate: '',
+      effectiveDate: todayIso,
+      dateOfBirth: '19800101',
+      relation: '',
+      studentStatus: '',
+      filler2: '',
+      gender: 'M',
+      email: 'alpha.one@example.com'
+    },
+    // Dependent of #1
+    {
+      title: '',
+      firstName: 'Beta',
+      middleName: '',
+      lastName: 'One',
+      postName: '',
+      uniqueId: 'TEST001',
+      sequenceNum: '01',
+      filler: '',
+      address1: '100 Alpha St',
+      address2: '',
+      city: 'Alphaville',
+      state: 'TS',
+      zip: '11111',
+      plus4: '',
+      homePhone: '',
+      workPhone: '',
+      coverage: 'MD',
+      groupCode: parentCode,
+      terminationDate: '',
+      effectiveDate: todayIso,
+      dateOfBirth: '20100101',
+      relation: 'C',
+      studentStatus: '',
+      filler2: '',
+      gender: 'F',
+      email: 'beta.one@example.com'
+    },
+    // Primary #2
+    {
+      title: 'Ms',
+      firstName: 'Gamma',
+      middleName: '',
+      lastName: 'Two',
+      postName: '',
+      uniqueId: 'TEST002',
+      sequenceNum: '00',
+      filler: '',
+      address1: '200 Gamma Rd',
+      address2: '',
+      city: 'Gammatown',
+      state: 'TS',
+      zip: '22222',
+      plus4: '',
+      homePhone: '5552220002',
+      workPhone: '',
+      coverage: 'MO',
+      groupCode: parentCode,
+      terminationDate: '',
+      effectiveDate: todayIso,
+      dateOfBirth: '19900202',
+      relation: '',
+      studentStatus: '',
+      filler2: '',
+      gender: 'F',
+      email: 'gamma.two@example.com'
+    },
+    // Primary #3
+    {
+      title: 'Dr',
+      firstName: 'Delta',
+      middleName: '',
+      lastName: 'Three',
+      postName: '',
+      uniqueId: 'TEST003',
+      sequenceNum: '00',
+      filler: '',
+      address1: '300 Delta Blvd',
+      address2: '',
+      city: 'Deltaville',
+      state: 'TS',
+      zip: '33333',
+      plus4: '',
+      homePhone: '5553330003',
+      workPhone: '',
+      coverage: 'MO',
+      groupCode: parentCode,
+      terminationDate: '',
+      effectiveDate: todayIso,
+      dateOfBirth: '19750303',
+      relation: '',
+      studentStatus: '',
+      filler2: '',
+      gender: 'M',
+      email: 'delta.three@example.com'
+    }
+  ];
+
+  // Generate and upload the file
+  const filePath = generateEligibilityFile(testMembers, parentCode, true);
+  await uploadEligibilityFile(filePath);
+
   res.send(`Test eligibility file generated at: ${filePath}`);
 });
+
 
 // Start Express server
 const PORT = process.env.PORT || 3050;
