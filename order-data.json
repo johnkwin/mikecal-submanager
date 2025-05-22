@@ -1,0 +1,351 @@
+{
+    "documents": [
+        {
+            "id": "fe36c64f-085f-49fe-9fb0-4b2d45b1062b",
+            "createdOn": "2025-03-24T21:05:13.976891Z",
+            "modifiedOn": "2025-03-24T22:03:17.357022Z",
+            "customerEmail": "johnkwin@gmail.com",
+            "salesOrderId": "67e1c9090356ee0ab5f13e03",
+            "voided": false,
+            "totalSales": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalNetSales": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalNetShipping": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalTaxes": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "total": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalNetPayment": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "payments": [],
+            "salesLineItems": [
+                {
+                    "id": "d11cc129-b3aa-4a5c-975d-d2d6448924b9",
+                    "discountAmount": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "totalSales": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "totalNetSales": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "total": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "taxes": []
+                }
+            ],
+            "discounts": [],
+            "shippingLineItems": [],
+            "paymentGatewayError": null
+        },
+        {
+            "id": "201135e4-f46e-49b0-995c-a8c3fa2c23f5",
+            "createdOn": "2025-03-04T04:47:04.216860Z",
+            "modifiedOn": "2025-03-04T04:47:06.363472Z",
+            "customerEmail": "mike.calvert@arkanddovecorp.com",
+            "salesOrderId": "67c685c8d8058c2f72de24c1",
+            "voided": false,
+            "totalSales": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetSales": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetShipping": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalTaxes": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "total": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetPayment": {
+                "value": "18.12",
+                "currency": "USD"
+            },
+            "payments": [
+                {
+                    "id": "0119d482-d995-427d-a8b7-11f3d23ac758",
+                    "amount": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "refundedAmount": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "netAmount": {
+                        "value": "18.12",
+                        "currency": "USD"
+                    },
+                    "creditCardType": "MASTERCARD",
+                    "provider": "STRIPE",
+                    "refunds": [],
+                    "processingFees": [
+                        {
+                            "id": "3884a4f1-b881-4122-b06f-482cd5aa5125",
+                            "amount": {
+                                "value": "0.99",
+                                "currency": "USD"
+                            },
+                            "amountGatewayCurrency": {
+                                "value": "0.99",
+                                "currency": "USD"
+                            },
+                            "exchangeRate": 1,
+                            "refundedAmount": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "refundedAmountGatewayCurrency": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "netAmount": {
+                                "value": "0.99",
+                                "currency": "USD"
+                            },
+                            "netAmountGatewayCurrency": {
+                                "value": "0.99",
+                                "currency": "USD"
+                            },
+                            "feeRefunds": []
+                        },
+                        {
+                            "id": "2b6c0e15-ea14-4e1d-808b-edeed1be66e7",
+                            "amount": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "amountGatewayCurrency": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "exchangeRate": 1,
+                            "refundedAmount": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "refundedAmountGatewayCurrency": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "netAmount": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "netAmountGatewayCurrency": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "feeRefunds": []
+                        }
+                    ],
+                    "giftCardId": null,
+                    "paidOn": "2025-03-04T04:47:02.351Z",
+                    "externalTransactionId": "ch_3QynNiGCRdPKjXIS0BjPXVP9",
+                    "externalTransactionProperties": [],
+                    "externalCustomerId": null
+                }
+            ],
+            "salesLineItems": [
+                {
+                    "id": "fe30a1de-f71e-436a-b14e-b951b637d20a",
+                    "discountAmount": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "totalSales": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "totalNetSales": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "total": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "taxes": []
+                }
+            ],
+            "discounts": [],
+            "shippingLineItems": [],
+            "paymentGatewayError": null
+        },
+        {
+            "id": "06301bfe-9e81-4377-89ce-75c2ecb79ee1",
+            "createdOn": "2025-02-04T04:20:40.799028Z",
+            "modifiedOn": "2025-02-04T04:20:42.135510Z",
+            "customerEmail": "mike.calvert@arkanddovecorp.com",
+            "salesOrderId": "67a195983a7e1615ee71d1e2",
+            "voided": false,
+            "totalSales": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetSales": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetShipping": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "totalTaxes": {
+                "value": "0.00",
+                "currency": "USD"
+            },
+            "total": {
+                "value": "19.99",
+                "currency": "USD"
+            },
+            "totalNetPayment": {
+                "value": "17.32",
+                "currency": "USD"
+            },
+            "payments": [
+                {
+                    "id": "54dcac9e-850a-41de-a741-e6ae236a5766",
+                    "amount": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "refundedAmount": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "netAmount": {
+                        "value": "17.32",
+                        "currency": "USD"
+                    },
+                    "creditCardType": "MASTERCARD",
+                    "provider": "STRIPE",
+                    "refunds": [],
+                    "processingFees": [
+                        {
+                            "id": "165666b9-b16d-4812-adae-5873adde74a3",
+                            "amount": {
+                                "value": "1.79",
+                                "currency": "USD"
+                            },
+                            "amountGatewayCurrency": {
+                                "value": "1.79",
+                                "currency": "USD"
+                            },
+                            "exchangeRate": 1,
+                            "refundedAmount": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "refundedAmountGatewayCurrency": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "netAmount": {
+                                "value": "1.79",
+                                "currency": "USD"
+                            },
+                            "netAmountGatewayCurrency": {
+                                "value": "1.79",
+                                "currency": "USD"
+                            },
+                            "feeRefunds": []
+                        },
+                        {
+                            "id": "6d8cae6b-fa65-4120-a143-fbe7973e5059",
+                            "amount": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "amountGatewayCurrency": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "exchangeRate": 1,
+                            "refundedAmount": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "refundedAmountGatewayCurrency": {
+                                "value": "0.00",
+                                "currency": "USD"
+                            },
+                            "netAmount": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "netAmountGatewayCurrency": {
+                                "value": "0.88",
+                                "currency": "USD"
+                            },
+                            "feeRefunds": []
+                        }
+                    ],
+                    "giftCardId": null,
+                    "paidOn": "2025-02-04T04:20:37.717Z",
+                    "externalTransactionId": "ch_3QodcoGCRdPKjXIS00zXsB8g",
+                    "externalTransactionProperties": [],
+                    "externalCustomerId": null
+                }
+            ],
+            "salesLineItems": [
+                {
+                    "id": "4fa07f13-0b22-4be6-876b-f72cc7bb32b9",
+                    "discountAmount": {
+                        "value": "0.00",
+                        "currency": "USD"
+                    },
+                    "totalSales": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "totalNetSales": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "total": {
+                        "value": "19.99",
+                        "currency": "USD"
+                    },
+                    "taxes": []
+                }
+            ],
+            "discounts": [],
+            "shippingLineItems": [],
+            "paymentGatewayError": null
+        }
+    ],
+    "pagination": {
+        "nextPageUrl": null,
+        "nextPageCursor": null,
+        "hasNextPage": false
+    }
+}

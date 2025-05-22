@@ -5,6 +5,7 @@ const SFTPClient = require('ssh2-sftp-client');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const { format: dfFormat } = require('date-fns');
 const { format, addMonths, addYears, parseISO } = require('date-fns');
 
 const app = express();
@@ -630,18 +631,18 @@ function buildMemberLine(member) {
 }
 
 
-function generateEligibilityFile(members, parentGroupCode, isFull = true) {
-  const today    = new Date();
-  const mmddyy   = formatDateMMDDYYYY(today).slice(0,6); // "MMDDYY"
-  const suffix   = isFull ? 'full' : 'delta';
-  const ext      = '.txt';  // or ".csv"
-  const fileName = `${parentGroupCode}${mmddyy}_${suffix}${ext}`;
+function generateEligibilityFile(members, parentGroupCode, isFull = true, isTest = false) {
+  // build MMDDYY
+  const datePart = dfFormat(new Date(), 'MMddyy');   
+  const suffix   = isFull ? 'FULL' : 'DELTA';        // upper-case
+  const prefix   = isTest ? 'TEST_' : '';            // static TEST_
+  const fileName = `${prefix}${parentGroupCode}${datePart}_${suffix}.txt`;
   const filePath = path.join(__dirname, fileName);
 
+  // build the body
   const lines = members.map(buildMemberLine);
   fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
-
-  console.log(`Eligibility file created: ${filePath}`);
+  console.log(`Eligibility file generated: ${filePath}`);
   return filePath;
 }
 
@@ -779,7 +780,7 @@ app.get('/test-generate-file', async (req, res) => {
   ];
 
   // Generate and upload the file
-  const filePath = generateEligibilityFile(testMembers, parentCode, true);
+  const filePath = generateEligibilityFile(testMembers, parentCode, /*isFull=*/true, /*isTest=*/true);
   await uploadEligibilityFile(filePath);
 
   res.send(`Test eligibility file generated at: ${filePath}`);
